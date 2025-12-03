@@ -1,0 +1,58 @@
+- hosts: devops-server
+  become: yes
+  vars:
+    k8s_manifests_dir: /home/{{ ansible_user }}/k8s-ondassynovdaulet
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - docker.io
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+
+    - name: Ensure docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Install kubectl
+      shell: |
+        curl -fsSL https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl
+        chmod +x /usr/local/bin/kubectl
+      args:
+        creates: /usr/local/bin/kubectl
+
+    - name: Install kind (Kubernetes in Docker) for local k8s
+      shell: |
+        curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+        chmod +x ./kind
+        mv ./kind /usr/local/bin/kind
+      args:
+        creates: /usr/local/bin/kind
+
+    - name: Create manifests directory
+      file:
+        path: "{{ k8s_manifests_dir }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Copy k8s manifests
+      copy:
+        src: "./k8s/"
+        dest: "{{ k8s_manifests_dir }}/"
+
+    - name: Apply k8s manifests
+      shell: kubectl apply -f {{ k8s_manifests_dir }}/
+      environment:
+        KUBECONFIG: /root/.kube/config

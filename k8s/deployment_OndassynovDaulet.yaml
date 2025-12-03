@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-app-ondassynovdaulet
+  labels:
+    app: todo-ondassynovdaulet
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: todo-ondassynovdaulet
+  template:
+    metadata:
+      labels:
+        app: todo-ondassynovdaulet
+    spec:
+      containers:
+      - name: todo-app
+        image: ondassynovdaulet/todo-app:1.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: configmap-ondassynovdaulet
+              key: SPRING_DATASOURCE_URL
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: configmap-ondassynovdaulet
+              key: SPRING_DATASOURCE_USERNAME
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: secret-ondassynovdaulet
+              key: SPRING_DATASOURCE_PASSWORD
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
