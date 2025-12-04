@@ -1,0 +1,69 @@
+---
+- name: Deploy Todo App (Ondassynov Daulet)
+  hosts: local
+  become: yes
+  gather_facts: yes
+
+  vars:
+    image_name: "ondassynovdaulet/todo-app"
+    image_tag: "1.0"
+    container_name: "todo-app"
+    host_port: 8080
+    container_port: 8080
+
+  tasks:
+    - name: Ensure apt cache is updated (Ubuntu/Debian)
+      apt:
+        update_cache: yes
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Install docker package (Ubuntu/Debian)
+      apt:
+        name: docker.io
+        state: present
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Ensure docker service is started and enabled
+      service:
+        name: docker
+        state: started
+        enabled: yes
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Check if image exists locally
+      command: docker images -q {{ image_name }}:{{ image_tag }}
+      register: image_exists
+      changed_when: false
+
+    - name: Pull docker image from registry if not present locally
+      command: docker pull {{ image_name }}:{{ image_tag }}
+      when: image_exists.stdout == ""
+      ignore_errors: yes
+
+    - name: Remove old container if exists
+      command: docker rm -f {{ container_name }}
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Run container
+      command: >
+        docker run -d --name {{ container_name }}
+        -p {{ host_port }}:{{ container_port }}
+        --restart unless-stopped
+        {{ image_name }}:{{ image_tag }}
+      register: run_result
+
+    - name: Wait for app to become ready
+      uri:
+        url: "http://localhost:{{ host_port }}/tasks"
+        method: GET
+        status_code: 200
+        return_content: yes
+      register: health
+      retries: 8
+      delay: 3
+      until: health.status == 200
+
+    - name: Show app response (first 500 chars)
+      debug:
+        msg: "{{ health.content | truncate(500) }}"
