@@ -1,1 +1,60 @@
-(paste the Jenkinsfile content above exactly here)
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "ondassynovdaulet/todo-app"
+        IMAGE_TAG  = "1.0"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo 'Cloning project from GitHub...'
+                git branch: 'main',
+                    url: 'https://github.com/blvckm4gic/todo-app-ondassynovdaulet.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Building project with Maven...'
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Running tests...'
+                sh 'mvn test'
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                echo 'Building Docker image...'
+                sh 'docker build -f Dockerfile_OndassynovDaulet -t $IMAGE_NAME:$IMAGE_TAG .'
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                echo 'Pushing image to Docker Hub...'
+                sh 'docker push $IMAGE_NAME:$IMAGE_TAG'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline finished'
+        }
+        success {
+            echo 'Build and Docker image were created successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
+
